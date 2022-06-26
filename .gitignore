@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# IDE and Text Editors
+\.vs
+\.vsocde
+
+# Binaries
+\bin
+\build
+
