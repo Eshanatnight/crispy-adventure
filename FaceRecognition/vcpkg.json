@@ -1,0 +1,11 @@
+{
+    "name": "face-recognition",
+    "version-string": "0.1",
+    "dependencies": [
+        "fmt",
+        {
+            "name": "opencv",
+            "features": [ "contrib" ]
+        }
+    ]
+}
