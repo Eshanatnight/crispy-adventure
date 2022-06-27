@@ -1,66 +1,62 @@
 #include <fmt/core.h>
-#include <opencv2/face.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
+#include <fmt/color.h>
 
-#include <iostream>
+#include "utils.h"
+
 #include <string>
 #include <vector>
-#include <ranges>
-#include <fstream>
-#include <sstream>
 
+#include <opencv2/face.hpp>
 
-// Normalizes the given face image to a standard size.
-static cv::Mat norm_0_255(cv::InputArray _src)
+int main(int argc, char** argv)
 {
-	cv::Mat src = _src.getMat();
-	
-	cv::Mat dst;
-	switch (src.channels())
+	if (argc < 2)
 	{
-	case 1:
-		cv::normalize(_src, dst, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-		break;
-	case 3:
-		cv::normalize(_src, dst, 0, 255, cv::NORM_MINMAX, CV_8UC3);
-		break;
-	default:
-		src.copyTo(dst);
-		break;
+		fmt::print(fg(fmt::color::hot_pink), "useage: {} <csv.ext> <output_folder>\n", argv[0]);
+		exit(1);
 	}
-	
-	return dst;
-}
 
-// read csv 
-static void read_csv(const std::string& file, std::vector<cv::Mat>& images, std::vector<int>& labels, char separator = ';')
-{
-	std::ifstream file_stream(file, std::ifstream::in);
-	if (!file_stream.is_open())
+	std::string outFolder(".");
+	if (argc == 3)
 	{
-		std::string error_message = fmt::format("Unable to open file \"{}\"\n", file);
-		CV_Error(cv::Error::StsBadArg, error_message);
-		return;
+		outFolder = std::move(std::string(argv[3]));
 	}
-	
-	std::string line, path, classlabel;
-	while (std::getline(file_stream, line))
+
+	std::string fm_csv(argv[2]);
+
+	std::vector<cv::Mat> images;
+	std::vector<int> lables;
+
+	try
 	{
-		std::stringstream liness(line);
-		std::getline(liness, path, separator);
-		std::getline(liness, classlabel);
-
-		if (!path.empty() && !classlabel.empty())
-		{
-			images.push_back(cv::imread(path, 0));
-			labels.push_back(std::stoi(classlabel));
-		}
+		read_csv(fm_csv, images, lables);
 	}
-}
+	catch (const cv::Exception& e)
+	{
+		fmt::print(stderr, fg(fmt::color::red), "Error Opening File {}\nReason: {}\n\n", fm_csv, e.msg);
+		exit(1);
+	}
 
-int main()
-{
-	fmt::print("Hello, World!\n");
+	if (images.size() <= 1)
+	{
+		std::string errorMessage = fmt::format("Insufficient Data\n");
+		CV_Error(cv::Error::StsError, errorMessage);
+	}
+
+	int height = images[0].rows;
+
+	cv::Mat testSample = images[images.size() - 1];
+	int testLable = lables[lables.size() - 1];
+
+	images.pop_back();
+	lables.pop_back();
+
+
+	cv::Ptr<cv::face::EigenFaceRecognizer> model = cv::face::EigenFaceRecognizer::create();
+	model->train(images, lables);
+
+	int predictedLable = model->predict(testSample);
+
+	std::string result = fmt::format("Predicted Class = {}, Actual Class = {}", predictedLable, testLable);
+
 }
